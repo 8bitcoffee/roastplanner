@@ -101,6 +101,18 @@ CREATE TABLE "orgs_tags"(
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- Table: users_facilities
+    -- Table for storing facility access for users
+    -- Users can be members of multiple facilities but have only one level in an organization
+CREATE TABLE "users_facilities"(
+    "id" SERIAL PRIMARY KEY,
+    "user" BIGINT NOT NULL,
+    "facility" BIGINT NOT NULL,
+    "active" BOOLEAN NOT NULL DEFAULT TRUE,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
+);
+
 -- ------------------------------------------------------------
 
 -- COFFEE TABLES: Recipe and ingredient tables for coffee roasting
@@ -144,7 +156,7 @@ CREATE TABLE "single_origins"(
     "target_color" VARCHAR(255) DEFAULT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL,
+    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
 -- Table: blends
@@ -173,7 +185,7 @@ CREATE TABLE "blends"(
     "target_color" VARCHAR(255) DEFAULT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL,
+    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
 -- Table: post_roast_blends
@@ -201,18 +213,35 @@ CREATE TABLE "post_roast_blends"(
     "target_color" VARCHAR(255) DEFAULT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL,
+    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- ------------------------------------------------------------
+
+-- PHYSICAL EQUIPMENT TABLES:
+
+-- Table: Facilities
+    -- Facilites are the physical locations where equipment and inventory are stored
+    -- Each facility is tied to an organization
 CREATE TABLE "facilities"(
     "id" SERIAL PRIMARY KEY,
     "org" BIGINT NOT NULL,
     "name" VARCHAR(255) NOT NULL,
+    "address_1" VARCHAR(255) DEFAULT NULL,
+    "address_2" VARCHAR(255) DEFAULT NULL,
+    "city" VARCHAR(255) DEFAULT NULL,
+    "state" VARCHAR(255) DEFAULT NULL,
+    "country" BIGINT DEFAULT NULL,
+    "zip" VARCHAR(255) DEFAULT NULL,
     "active" BOOLEAN NOT NULL,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL,
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- Table: Roasters
+    -- Roasters are the physical machines used to roast coffee
+    -- Each roaster is tied to a facility
+    -- Specs for roasters are required to populate schedules
 CREATE TABLE "roasters"( 
     "id" SERIAL PRIMARY KEY,
     "org" BIGINT NOT NULL,
@@ -228,17 +257,16 @@ CREATE TABLE "roasters"(
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
-CREATE TABLE "green_inventory"(
-    "id" SERIAL PRIMARY KEY,
-    "org" BIGINT NOT NULL,
-    "facility" BIGINT NOT NULL,
-    "green_id" BIGINT NOT NULL,
-    "quantity" BIGINT NOT NULL,
-    "active" BOOLEAN NOT NULL DEFAULT TRUE,
-    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
-);
+-- ------------------------------------------------------------
 
+-- INVENTORY TABLES: Tables for tracking inventory of bulk roasted and finished products
+
+-- Table: roasted_inventory
+    -- Inventory of roasted coffee in bulk
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a roasted product
+    -- Quantity is in kilograms
+    -- Created by loose leftover roasted coffee from a batch
 CREATE TABLE "roasted_inventory"(
     "id" SERIAL PRIMARY KEY,
     "org" BIGINT NOT NULL,
@@ -249,6 +277,9 @@ CREATE TABLE "roasted_inventory"(
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- Table: finished_products
+    -- Inventory of finished products ready for sale
+    -- Leftover packaged coffee from a batch
 CREATE TABLE "finished_products"( 
     "id" SERIAL PRIMARY KEY,
     "org" BIGINT NOT NULL,
@@ -259,47 +290,189 @@ CREATE TABLE "finished_products"(
     "label_id" BIGINT DEFAULT NULL,
     "content_weight" VARCHAR(255) NOT NULL,
     "total_weight" VARCHAR(255) NOT NULL,
+    "sku" VARCHAR(255) NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- Table: packing
+    -- Inventory of packaging materials
+    -- Each entry is tied to a facility
 CREATE TABLE "packaging"( 
     "id" SERIAL PRIMARY KEY,
-    "org" BIGINT NOT NULL,
+    "facility" BIGINT NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
+-- Table: labels
+    -- Inventory of labels
+    -- Each entry is tied to an organization
 CREATE TABLE "labels"( 
     "id" SERIAL PRIMARY KEY,
-    "org" BIGINT NOT NULL,
+    "facility" BIGINT NOT NULL,
     "name" VARCHAR(255) NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT TRUE,
     "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
 );
 
-CREATE TABLE "fp_packaging"( 
+-- ------------------------------------------------------------
+-- TRANSACTION TABLES: Tables for tracking transactions and batches
+
+-- Table: roast_cycles
+    -- Table for tracking roast cycles
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a roaster
+    -- Each entry is tied to a recipe
+    -- Batch size and post-roast weight are in kilograms
+    -- Created by a user when a batch is roasted
+CREATE TABLE "roast_cycles"(
     "id" SERIAL PRIMARY KEY,
-    "org" BIGINT NOT NULL,
-    "fp_id" BIGINT NOT NULL,
-    "packaging_id" BIGINT NOT NULL,
-    "quantity" BIGINT NOT NULL,
-    "active" BOOLEAN NOT NULL DEFAULT TRUE,
-    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "archived" TIMESTAMP(0) WITH TIME ZONE DEFAULT NULL
+    "facility" BIGINT NOT NULL,
+    "roaster" BIGINT NOT NULL,
+    "recipe_id" BIGINT NOT NULL,
+    "batch_size" VARCHAR(255) NOT NULL,
+    "post_roast_weight" VARCHAR(255) NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Table: packaging_batches
+    -- Table for tracking packaging batches
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a finished product
+    -- Each entry is tied to a packaging material
+    -- Each entry is tied to a label
+    -- Quantity is in units
+    -- Created by a user when a batch is packaged
+CREATE TABLE "packaging_batches"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "fp_id" BIGINT NOT NULL,
+    "packaging_id" BIGINT NOT NULL,
+    "label_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: green_transactions
+    -- Table for tracking green coffee transactions
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a green coffee
+    -- Quantity is in kilograms
+    -- Created by a user when a transaction is made
+CREATE TABLE "green_transactions"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "green_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: roasted_transactions
+    -- Table for tracking roasted coffee transactions
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a roasted coffee
+    -- Quantity is in kilograms
+    -- Created by a user when a transaction is made
+CREATE TABLE "roasted_transactions"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "roasted_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: packaging_transactions
+    -- Table for tracking packaging material transactions
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a packaging material
+    -- Quantity is in units
+    -- Created by a user when a transaction is made
+CREATE TABLE "packaging_transactions"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "packaging_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: label_transactions
+    -- Table for tracking label transactions
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a label
+    -- Quantity is in units
+    -- Created by a user when a transaction is made
+CREATE TABLE "label_transactions"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "label_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table: finished_product_transactions
+    -- Table for tracking finished product transactions
+    -- Each entry is tied to a facility
+    -- Each entry is tied to a finished product
+    -- Quantity is in units
+    -- Created by a user when a transaction is made
+CREATE TABLE "finished_product_transactions"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "fp_id" BIGINT NOT NULL,
+    "quantity" BIGINT NOT NULL,
+    "created" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ------------------------------------------------------------
+-- SCHEDULE TABLES: Tables for tracking production schedules
+
+-- Table: orders
+    -- Table tracking orders from online sources
+    -- Each entry is tied to an organization
+    -- Boolean for whether the order has been fulfilled
+    -- Boolean for retail or wholesale
+CREATE TABLE "orders"(
+    "id" SERIAL PRIMARY KEY,
+    "org" BIGINT NOT NULL,
+    "order_number" VARCHAR(255) NOT NULL,
+    "order_date" TIMESTAMP(0) WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "fulfilled" BOOLEAN NOT NULL DEFAULT FALSE,
+    "wholesale" BOOLEAN NOT NULL DEFAULT FALSE,
+    "order_details" JSONB NOT NULL
+);
+
+-- Table: schedules
+    -- Table for tracking production schedules
+    -- Each entry is tied to a facility
+    -- Each schedule has a start time
+    -- The schedule is a json object populated according to orders
+CREATE TABLE "schedules"(
+    "id" SERIAL PRIMARY KEY,
+    "facility" BIGINT NOT NULL,
+    "time" TIMESTAMP(0) WITH TIME ZONE NOT NULL,
+    "schedule" JSONB NOT NULL
+);
+
+
+
+-- ------------------------------------------------------------
+-- REFERENCE TABLES: Tables for storing reference data
+
+-- Table: titles
+    -- Table for storing titles
 CREATE TABLE "title_descriptors"(
     "id" SERIAL PRIMARY KEY,
     "descriptor" VARCHAR(255) NOT NULL
 );
 
-
-
+-- Table: currencies
+    -- Table for storing currencies
+    -- symbol references currency_symbols
 CREATE TABLE "currencies"(
     "id" SERIAL PRIMARY KEY,
     "name" VARCHAR(255) NOT NULL,
@@ -307,20 +480,24 @@ CREATE TABLE "currencies"(
     "symbol" BIGINT NOT NULL
 );
 
-
-
+-- Table: currency_symbols
+    -- Table for storing currency symbols
 CREATE TABLE "currency_symbols"(
     "id" SERIAL PRIMARY KEY,
     "symbol" VARCHAR(255) NOT NULL
 );
 
-
-
+-- Table: flavors
+    -- Table for storing flavor descriptions
 CREATE TABLE "flavors"(
     "id" SERIAL PRIMARY KEY,
     "name" VARCHAR(255) NOT NULL
 );
 
+-- Table: countries
+    -- Table for storing countries
+    -- iso_code is the country specific iso code
+    -- phone_code is the country's phone code
 CREATE TABLE "countries"(
     "id" SERIAL PRIMARY KEY,
     "name" VARCHAR(255) NOT NULL,
@@ -328,14 +505,18 @@ CREATE TABLE "countries"(
     "phone_code" BIGINT NOT NULL
 );
 
+-- Table: processing_methods
+    -- Table for storing processing methods
 CREATE TABLE "processing_methods"(
     "id" SERIAL PRIMARY KEY,
     "name" VARCHAR(255) NOT NULL
 );
 
+-- Table: states
+    -- Table for storing states
+    -- country references countries table
 CREATE TABLE "states"(
     "id" SERIAL PRIMARY KEY,
     "name" VARCHAR(255) NOT NULL,
     "country" BIGINT NOT NULL
 );
-
